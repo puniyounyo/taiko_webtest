@@ -1,0 +1,45 @@
+はい、Webサイトのindex.htmlを作成します。以下に、WebUSBを使用してArduinoから設定値を受信し、表示する基本的なindex.htmlの例を示します。
+
+HTML
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>太鼓入力デバイス設定</title>
+</head>
+<body>
+  <h1>太鼓入力デバイス設定</h1>
+  <p>se0: <span id="se0"></span></p>
+  <p>se1: <span id="se1"></span></p>
+  <p>se2: <span id="se2"></span></p>
+  <p>se3: <span id="se3"></span></p>
+  <p>A: <span id="A"></span></p>
+  <p>B: <span id="B"></span></p>
+  <p>C: <span id="C"></span></p>
+  <p>p1: <span id="p1"></span></p>
+  <p>ha: <span id="ha"></span></p>
+
+  <script>
+    // WebUSBでデータを受信する処理
+    navigator.usb.requestPort().then(port => {
+      port.open().then(() => {
+        port.transferIn(1, 64).then(result => {
+          const decoder = new TextDecoder();
+          const jsonString = decoder.decode(result.data);
+          const settings = JSON.parse(jsonString);
+          // 設定値をHTML要素に表示
+          document.getElementById("se0").textContent = settings.se0;
+          document.getElementById("se1").textContent = settings.se1;
+          document.getElementById("se2").textContent = settings.se2;
+          document.getElementById("se3").textContent = settings.se3;
+          document.getElementById("A").textContent = settings.A;
+          document.getElementById("B").textContent = settings.B;
+          document.getElementById("C").textContent = settings.C;
+          document.getElementById("p1").textContent = settings.p1;
+          document.getElementById("ha").textContent = settings.ha;
+        });
+      });
+    });
+  </script>
+</body>
+</html>
