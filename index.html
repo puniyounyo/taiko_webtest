@@ -19,39 +19,47 @@
   <h2>設定変更</h2>
   <form id="settingsForm">
     <label for="se0Input">se0:</label>
-    <input type="range" id="se0Input" name="se0" min="0" max="255"><br>
+    <input type="range" id="se0Input" name="se0" min="0" max="255">
+    <span id="se0Value"></span><br>
 
     <label for="se1Input">se1:</label>
-    <input type="range" id="se1Input" name="se1" min="0" max="255"><br>
+    <input type="range" id="se1Input" name="se1" min="0" max="255">
+    <span id="se1Value"></span><br>
 
     <label for="se2Input">se2:</label>
-    <input type="range" id="se2Input" name="se2" min="0" max="255"><br>
+    <input type="range" id="se2Input" name="se2" min="0" max="255">
+    <span id="se2Value"></span><br>
 
     <label for="se3Input">se3:</label>
-    <input type="range" id="se3Input" name="se3" min="0" max="255"><br>
+    <input type="range" id="se3Input" name="se3" min="0" max="255">
+    <span id="se3Value"></span><br>
 
     <label for="AInput">A:</label>
-    <input type="range" id="AInput" name="A" min="0" max="255"><br>
+    <input type="range" id="AInput" name="A" min="0" max="255">
+    <span id="AValue"></span><br>
 
     <label for="BInput">B:</label>
-    <input type="range" id="BInput" name="B" min="0" max="255"><br>
+    <input type="range" id="BInput" name="B" min="0" max="255">
+    <span id="BValue"></span><br>
 
     <label for="CInput">C:</label>
-    <input type="range" id="CInput" name="C" min="0" max="255"><br>
+    <input type="range" id="CInput" name="C" min="0" max="255">
+    <span id="CValue"></span><br>
 
     <label for="p1Input">p1:</label>
-    <input type="range" id="p1Input" name="p1" min="0" max="255"><br>
+    <input type="range" id="p1Input" name="p1" min="0" max="255">
+    <span id="p1Value"></span><br>
 
     <label for="haInput">ha:</label>
-    <input type="range" id="haInput" name="ha" min="0" max="255"><br>
+    <input type="range" id="haInput" name="ha" min="0" max="255">
+    <span id="haValue"></span><br>
 
     <button type="button" id="applyButton">適用</button>
   </form>
 
   <script>
-    let port; // ポートをグローバル変数として保持
+    let port;
 
-    // 設定値を表示する関数
     function displaySettings(settings) {
       document.getElementById("se0").textContent = settings.se0;
       document.getElementById("se1").textContent = settings.se1;
@@ -72,9 +80,19 @@
       document.getElementById("CInput").value = settings.C;
       document.getElementById("p1Input").value = settings.p1;
       document.getElementById("haInput").value = settings.ha;
+
+      // スライドバーの横に値を表示
+      document.getElementById("se0Value").textContent = settings.se0;
+      document.getElementById("se1Value").textContent = settings.se1;
+      document.getElementById("se2Value").textContent = settings.se2;
+      document.getElementById("se3Value").textContent = settings.se3;
+      document.getElementById("AValue").textContent = settings.A;
+      document.getElementById("BValue").textContent = settings.B;
+      document.getElementById("CValue").textContent = settings.C;
+      document.getElementById("p1Value").textContent = settings.p1;
+      document.getElementById("haValue").textContent = settings.ha;
     }
 
-    // データを受信する関数
     function receiveData() {
       port.transferIn(1, 64).then(result => {
         const decoder = new TextDecoder();
@@ -84,7 +102,6 @@
       });
     }
 
-    // 適用ボタンのイベントリスナー
     document.getElementById("applyButton").addEventListener("click", () => {
       const form = document.getElementById("settingsForm");
       const formData = new FormData(form);
@@ -96,17 +113,19 @@
       const encoder = new TextEncoder();
       const data = encoder.encode(jsonString);
       port.transferOut(1, data).then(() => {
-        receiveData(); // 書き込み後に再度データを受信
+        receiveData();
       });
     });
 
-    // WebUSBで接続
     navigator.usb.requestPort().then(selectedPort => {
-      port = selectedPort; // ポートをグローバル変数に保存
+      port = selectedPort;
       port.open().then(() => {
-        receiveData(); // 接続時にデータを初期表示
+        receiveData();
       });
     });
-  </script>
-</body>
-</html>
+
+    // スライドバーの値をリアルタイムに表示
+    document.getElementById("se0Input").addEventListener("input", () => {
+      document.getElementById("se0Value").textContent = document.getElementById("se0Input").value;
+    });
+    document.getElementById("se1Input
