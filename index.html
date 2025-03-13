@@ -1,7 +1,3 @@
-はい、Webサイトのindex.htmlを作成します。以下に、WebUSBを使用してArduinoから設定値を受信し、表示する基本的なindex.htmlの例を示します。
-
-HTML
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -9,6 +5,7 @@ HTML
 </head>
 <body>
   <h1>太鼓入力デバイス設定</h1>
+
   <p>se0: <span id="se0"></span></p>
   <p>se1: <span id="se1"></span></p>
   <p>se2: <span id="se2"></span></p>
@@ -18,6 +15,38 @@ HTML
   <p>C: <span id="C"></span></p>
   <p>p1: <span id="p1"></span></p>
   <p>ha: <span id="ha"></span></p>
+
+  <h2>設定変更</h2>
+  <form id="settingsForm">
+    <label for="se0Input">se0:</label>
+    <input type="number" id="se0Input" name="se0"><br>
+
+    <label for="se1Input">se1:</label>
+    <input type="number" id="se1Input" name="se1"><br>
+
+    <label for="se2Input">se2:</label>
+    <input type="number" id="se2Input" name="se2"><br>
+
+    <label for="se3Input">se3:</label>
+    <input type="number" id="se3Input" name="se3"><br>
+
+    <label for="AInput">A:</label>
+    <input type="number" id="AInput" name="A"><br>
+
+    <label for="BInput">B:</label>
+    <input type="number" id="BInput" name="B"><br>
+
+    <label for="CInput">C:</label>
+    <input type="number" id="CInput" name="C"><br>
+
+    <label for="p1Input">p1:</label>
+    <input type="number" id="p1Input" name="p1"><br>
+
+    <label for="haInput">ha:</label>
+    <input type="number" id="haInput" name="ha"><br>
+
+    <button type="button" id="applyButton">適用</button>
+  </form>
 
   <script>
     // WebUSBでデータを受信する処理
@@ -37,6 +66,31 @@ HTML
           document.getElementById("C").textContent = settings.C;
           document.getElementById("p1").textContent = settings.p1;
           document.getElementById("ha").textContent = settings.ha;
+
+          // フォームに現在の設定値を表示
+          document.getElementById("se0Input").value = settings.se0;
+          document.getElementById("se1Input").value = settings.se1;
+          document.getElementById("se2Input").value = settings.se2;
+          document.getElementById("se3Input").value = settings.se3;
+          document.getElementById("AInput").value = settings.A;
+          document.getElementById("BInput").value = settings.B;
+          document.getElementById("CInput").value = settings.C;
+          document.getElementById("p1Input").value = settings.p1;
+          document.getElementById("haInput").value = settings.ha;
+        });
+
+        // 適用ボタンのイベントリスナー
+        document.getElementById("applyButton").addEventListener("click", () => {
+          const form = document.getElementById("settingsForm");
+          const formData = new FormData(form);
+          const settings = {};
+          formData.forEach((value, key) => {
+            settings[key] = parseInt(value);
+          });
+          const jsonString = JSON.stringify(settings);
+          const encoder = new TextEncoder();
+          const data = encoder.encode(jsonString);
+          port.transferOut(1, data);
         });
       });
     });
