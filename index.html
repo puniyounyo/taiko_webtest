@@ -19,79 +19,92 @@
   <h2>設定変更</h2>
   <form id="settingsForm">
     <label for="se0Input">se0:</label>
-    <input type="number" id="se0Input" name="se0"><br>
+    <input type="range" id="se0Input" name="se0" min="0" max="255"><br>
 
     <label for="se1Input">se1:</label>
-    <input type="number" id="se1Input" name="se1"><br>
+    <input type="range" id="se1Input" name="se1" min="0" max="255"><br>
 
     <label for="se2Input">se2:</label>
-    <input type="number" id="se2Input" name="se2"><br>
+    <input type="range" id="se2Input" name="se2" min="0" max="255"><br>
 
     <label for="se3Input">se3:</label>
-    <input type="number" id="se3Input" name="se3"><br>
+    <input type="range" id="se3Input" name="se3" min="0" max="255"><br>
 
     <label for="AInput">A:</label>
-    <input type="number" id="AInput" name="A"><br>
+    <input type="range" id="AInput" name="A" min="0" max="255"><br>
 
     <label for="BInput">B:</label>
-    <input type="number" id="BInput" name="B"><br>
+    <input type="range" id="BInput" name="B" min="0" max="255"><br>
 
     <label for="CInput">C:</label>
-    <input type="number" id="CInput" name="C"><br>
+    <input type="range" id="CInput" name="C" min="0" max="255"><br>
 
     <label for="p1Input">p1:</label>
-    <input type="number" id="p1Input" name="p1"><br>
+    <input type="range" id="p1Input" name="p1" min="0" max="255"><br>
 
     <label for="haInput">ha:</label>
-    <input type="number" id="haInput" name="ha"><br>
+    <input type="range" id="haInput" name="ha" min="0" max="255"><br>
 
     <button type="button" id="applyButton">適用</button>
   </form>
 
   <script>
-    // WebUSBでデータを受信する処理
-    navigator.usb.requestPort().then(port => {
+    let port; // ポートをグローバル変数として保持
+
+    // 設定値を表示する関数
+    function displaySettings(settings) {
+      document.getElementById("se0").textContent = settings.se0;
+      document.getElementById("se1").textContent = settings.se1;
+      document.getElementById("se2").textContent = settings.se2;
+      document.getElementById("se3").textContent = settings.se3;
+      document.getElementById("A").textContent = settings.A;
+      document.getElementById("B").textContent = settings.B;
+      document.getElementById("C").textContent = settings.C;
+      document.getElementById("p1").textContent = settings.p1;
+      document.getElementById("ha").textContent = settings.ha;
+
+      document.getElementById("se0Input").value = settings.se0;
+      document.getElementById("se1Input").value = settings.se1;
+      document.getElementById("se2Input").value = settings.se2;
+      document.getElementById("se3Input").value = settings.se3;
+      document.getElementById("AInput").value = settings.A;
+      document.getElementById("BInput").value = settings.B;
+      document.getElementById("CInput").value = settings.C;
+      document.getElementById("p1Input").value = settings.p1;
+      document.getElementById("haInput").value = settings.ha;
+    }
+
+    // データを受信する関数
+    function receiveData() {
+      port.transferIn(1, 64).then(result => {
+        const decoder = new TextDecoder();
+        const jsonString = decoder.decode(result.data);
+        const settings = JSON.parse(jsonString);
+        displaySettings(settings);
+      });
+    }
+
+    // 適用ボタンのイベントリスナー
+    document.getElementById("applyButton").addEventListener("click", () => {
+      const form = document.getElementById("settingsForm");
+      const formData = new FormData(form);
+      const settings = {};
+      formData.forEach((value, key) => {
+        settings[key] = parseInt(value);
+      });
+      const jsonString = JSON.stringify(settings);
+      const encoder = new TextEncoder();
+      const data = encoder.encode(jsonString);
+      port.transferOut(1, data).then(() => {
+        receiveData(); // 書き込み後に再度データを受信
+      });
+    });
+
+    // WebUSBで接続
+    navigator.usb.requestPort().then(selectedPort => {
+      port = selectedPort; // ポートをグローバル変数に保存
       port.open().then(() => {
-        port.transferIn(1, 64).then(result => {
-          const decoder = new TextDecoder();
-          const jsonString = decoder.decode(result.data);
-          const settings = JSON.parse(jsonString);
-          // 設定値をHTML要素に表示
-          document.getElementById("se0").textContent = settings.se0;
-          document.getElementById("se1").textContent = settings.se1;
-          document.getElementById("se2").textContent = settings.se2;
-          document.getElementById("se3").textContent = settings.se3;
-          document.getElementById("A").textContent = settings.A;
-          document.getElementById("B").textContent = settings.B;
-          document.getElementById("C").textContent = settings.C;
-          document.getElementById("p1").textContent = settings.p1;
-          document.getElementById("ha").textContent = settings.ha;
-
-          // フォームに現在の設定値を表示
-          document.getElementById("se0Input").value = settings.se0;
-          document.getElementById("se1Input").value = settings.se1;
-          document.getElementById("se2Input").value = settings.se2;
-          document.getElementById("se3Input").value = settings.se3;
-          document.getElementById("AInput").value = settings.A;
-          document.getElementById("BInput").value = settings.B;
-          document.getElementById("CInput").value = settings.C;
-          document.getElementById("p1Input").value = settings.p1;
-          document.getElementById("haInput").value = settings.ha;
-        });
-
-        // 適用ボタンのイベントリスナー
-        document.getElementById("applyButton").addEventListener("click", () => {
-          const form = document.getElementById("settingsForm");
-          const formData = new FormData(form);
-          const settings = {};
-          formData.forEach((value, key) => {
-            settings[key] = parseInt(value);
-          });
-          const jsonString = JSON.stringify(settings);
-          const encoder = new TextEncoder();
-          const data = encoder.encode(jsonString);
-          port.transferOut(1, data);
-        });
+        receiveData(); // 接続時にデータを初期表示
       });
     });
   </script>
