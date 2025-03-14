@@ -1,158 +1,90 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>太鼓入力デバイス設定</title>
+  <title>Pro Micro EEPROM</title>
 </head>
 <body>
-  <h1>太鼓入力デバイス設定</h1>
-
-  <p>se0: <span id="se0"></span></p>
-  <p>se1: <span id="se1"></span></p>
-  <p>se2: <span id="se2"></span></p>
-  <p>se3: <span id="se3"></span></p>
-  <p>A: <span id="A"></span></p>
-  <p>B: <span id="B"></span></p>
-  <p>C: <span id="C"></span></p>
-  <p>p1: <span id="p1"></span></p>
-  <p>ha: <span id="ha"></span></p>
-
-  <h2>設定変更</h2>
-  <form id="settingsForm">
-    <label for="se0Input">se0:</label>
-    <input type="range" id="se0Input" name="se0" min="0" max="255">
-    <span id="se0Value"></span><br>
-
-    <label for="se1Input">se1:</label>
-    <input type="range" id="se1Input" name="se1" min="0" max="255">
-    <span id="se1Value"></span><br>
-
-    <label for="se2Input">se2:</label>
-    <input type="range" id="se2Input" name="se2" min="0" max="255">
-    <span id="se2Value"></span><br>
-
-    <label for="se3Input">se3:</label>
-    <input type="range" id="se3Input" name="se3" min="0" max="255">
-    <span id="se3Value"></span><br>
-
-    <label for="AInput">A:</label>
-    <input type="range" id="AInput" name="A" min="0" max="255">
-    <span id="AValue"></span><br>
-
-    <label for="BInput">B:</label>
-    <input type="range" id="BInput" name="B" min="0" max="255">
-    <span id="BValue"></span><br>
-
-    <label for="CInput">C:</label>
-    <input type="range" id="CInput" name="C" min="0" max="255">
-    <span id="CValue"></span><br>
-
-    <label for="p1Input">p1:</label>
-    <input type="range" id="p1Input" name="p1" min="0" max="255">
-    <span id="p1Value"></span><br>
-
-    <label for="haInput">ha:</label>
-    <input type="range" id="haInput" name="ha" min="0" max="255">
-    <span id="haValue"></span><br>
-
-    <button type="button" id="applyButton">適用</button>
-  </form>
+  se0: <input type="range" id="se0" min="0" max="100"><span id="se0Value"></span><br>
+  se1: <input type="range" id="se1" min="0" max="100"><span id="se1Value"></span><br>
+  se2: <input type="range" id="se2" min="0" max="100"><span id="se2Value"></span><br>
+  se3: <input type="range" id="se3" min="0" max="100"><span id="se3Value"></span><br>
+  A: <input type="range" id="A" min="0" max="100"><span id="AValue"></span><br>
+  B: <input type="range" id="B" min="0" max="100"><span id="BValue"></span><br>
+  C: <input type="range" id="C" min="0" max="100"><span id="CValue"></span><br>
+  p1: <input type="range" id="p1" min="0" max="100"><span id="p1Value"></span><br>
+  ha: <input type="range" id="ha" min="0" max="100"><span id="haValue"></span><br>
+  <button id="writeButton">書き込み</button>
+  <button id="readButton">読み込み</button>
 
   <script>
     let port;
+    let reader;
+    let writer;
 
-    function displaySettings(settings) {
-      document.getElementById("se0").textContent = settings.se0;
-      document.getElementById("se1").textContent = settings.se1;
-      document.getElementById("se2").textContent = settings.se2;
-      document.getElementById("se3").textContent = settings.se3;
-      document.getElementById("A").textContent = settings.A;
-      document.getElementById("B").textContent = settings.B;
-      document.getElementById("C").textContent = settings.C;
-      document.getElementById("p1").textContent = settings.p1;
-      document.getElementById("ha").textContent = settings.ha;
+    async function connectSerial() {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 9600 });
+      reader = port.readable.getReader();
+      writer = port.writable.getWriter();
 
-      // スライドバーの位置を合わせる
-      document.getElementById("se0Input").value = settings.se0;
-      document.getElementById("se1Input").value = settings.se1;
-      document.getElementById("se2Input").value = settings.se2;
-      document.getElementById("se3Input").value = settings.se3;
-      document.getElementById("AInput").value = settings.A;
-      document.getElementById("BInput").value = settings.B;
-      document.getElementById("CInput").value = settings.C;
-      document.getElementById("p1Input").value = settings.p1;
-      document.getElementById("haInput").value = settings.ha;
+      const decoder = new TextDecoderStream();
+      const readableStreamClosed = port.readable.pipeTo(decoder.writable);
+      const readable = decoder.readable.pipeThrough(new TransformStream({
+        transform(chunk, controller) {
+          controller.enqueue(chunk);
+        }
+      }));
 
-      // スライドバーの横に値を表示
-      document.getElementById("se0Value").textContent = settings.se0;
-      document.getElementById("se1Value").textContent = settings.se1;
-      document.getElementById("se2Value").textContent = settings.se2;
-      document.getElementById("se3Value").textContent = settings.se3;
-      document.getElementById("AValue").textContent = settings.A;
-      document.getElementById("BValue").textContent = settings.B;
-      document.getElementById("CValue").textContent = settings.C;
-      document.getElementById("p1Value").textContent = settings.p1;
-      document.getElementById("haValue").textContent = settings.ha;
+      const reader2 = readable.getReader();
+
+      async function readLoop() {
+        while (true) {
+          const { value, done } = await reader2.read();
+          if (done) {
+            break;
+          }
+          const values = value.trim().split(',');
+          updateSliderValues(values);
+        }
+      }
+
+      readLoop();
     }
 
-    function receiveData() {
-      port.transferIn(1, 64).then(result => {
-        const decoder = new TextDecoder();
-        const jsonString = decoder.decode(result.data);
-        const settings = JSON.parse(jsonString);
-        displaySettings(settings);
-      });
+    function updateSliderValues(values) {
+      document.getElementById("se0").value = values[0]; document.getElementById("se0Value").textContent = values[0];
+      document.getElementById("se1").value = values[1]; document.getElementById("se1Value").textContent = values[1];
+      document.getElementById("se2").value = values[2]; document.getElementById("se2Value").textContent = values[2];
+      document.getElementById("se3").value = values[3]; document.getElementById("se3Value").textContent = values[3];
+      document.getElementById("A").value = values[4]; document.getElementById("AValue").textContent = values[4];
+      document.getElementById("B").value = values[5]; document.getElementById("BValue").textContent = values[5];
+      document.getElementById("C").value = values[6]; document.getElementById("CValue").textContent = values[6];
+      document.getElementById("p1").value = values[7]; document.getElementById("p1Value").textContent = values[7];
+      document.getElementById("ha").value = values[8]; document.getElementById("haValue").textContent = values[8];
     }
 
-    document.getElementById("applyButton").addEventListener("click", () => {
-      const form = document.getElementById("settingsForm");
-      const formData = new FormData(form);
-      const settings = {};
-      formData.forEach((value, key) => {
-        settings[key] = parseInt(value);
-      });
-      const jsonString = JSON.stringify(settings);
+    document.getElementById("writeButton").addEventListener("click", async () => {
+      const se0 = document.getElementById("se0").value;
+      const se1 = document.getElementById("se1").value;
+      const se2 = document.getElementById("se2").value;
+      const se3 = document.getElementById("se3").value;
+      const A = document.getElementById("A").value;
+      const B = document.getElementById("B").value;
+      const C = document.getElementById("C").value;
+      const p1 = document.getElementById("p1").value;
+      const ha = document.getElementById("ha").value;
+      const data = `write:${se0},${se1},${se2},${se3},${A},${B},${C},${p1},${ha}\n`;
       const encoder = new TextEncoder();
-      const data = encoder.encode(jsonString);
-      port.transferOut(1, data).then(() => {
-        receiveData();
-      });
+      await writer.write(encoder.encode(data));
     });
 
-    navigator.usb.requestPort().then(selectedPort => {
-      port = selectedPort;
-      port.open().then(() => {
-        receiveData();
-      });
+    document.getElementById("readButton").addEventListener("click", async () => {
+      const data = "read\n";
+      const encoder = new TextEncoder();
+      await writer.write(encoder.encode(data));
     });
 
-    // スライドバーの値をリアルタイムに表示
-    document.getElementById("se0Input").addEventListener("input", () => {
-      document.getElementById("se0Value").textContent = document.getElementById("se0Input").value;
-    });
-    document.getElementById("se1Input").addEventListener("input", () => {
-      document.getElementById("se1Value").textContent = document.getElementById("se1Input").value;
-    });
-    document.getElementById("se2Input").addEventListener("input", () => {
-      document.getElementById("se2Value").textContent = document.getElementById("se2Input").value;
-    });
-    document.getElementById("se3Input").addEventListener("input", () => {
-      document.getElementById("se3Value").textContent = document.getElementById("se3Input").value;
-    });
-    document.getElementById("AInput").addEventListener("input", () => {
-      document.getElementById("AValue").textContent = document.getElementById("AInput").value;
-    });
-    document.getElementById("BInput").addEventListener("input", () => {
-      document.getElementById("BValue").textContent = document.getElementById("BInput").value;
-    });
-    document.getElementById("CInput").addEventListener("input", () => {
-      document.getElementById("CValue").textContent = document.getElementById("CInput").value;
-    });
-    document.getElementById("p1Input").addEventListener("input", () => {
-      document.getElementById("p1Value").textContent = document.getElementById("p1Input").value;
-    });
-    document.getElementById("haInput").addEventListener("input", () => {
-      document.getElementById("haValue").textContent = document.getElementById("haInput").value;
-    });
+    connectSerial();
   </script>
 </body>
 </html>
