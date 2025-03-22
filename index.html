@@ -1,90 +1,92 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Pro Micro EEPROM</title>
+  <title>Web Serial API Test</title>
 </head>
 <body>
-  se0: <input type="range" id="se0" min="0" max="100"><span id="se0Value"></span><br>
-  se1: <input type="range" id="se1" min="0" max="100"><span id="se1Value"></span><br>
-  se2: <input type="range" id="se2" min="0" max="100"><span id="se2Value"></span><br>
-  se3: <input type="range" id="se3" min="0" max="100"><span id="se3Value"></span><br>
-  A: <input type="range" id="A" min="0" max="100"><span id="AValue"></span><br>
-  B: <input type="range" id="B" min="0" max="100"><span id="BValue"></span><br>
-  C: <input type="range" id="C" min="0" max="100"><span id="CValue"></span><br>
-  p1: <input type="range" id="p1" min="0" max="100"><span id="p1Value"></span><br>
-  ha: <input type="range" id="ha" min="0" max="100"><span id="haValue"></span><br>
-  <button id="writeButton">書き込み</button>
-  <button id="readButton">読み込み</button>
+  <h1>Web Serial API Test with Arduino Leonardo</h1>
+
+  <button id="connectButton">Connect to Serial Port</button>
+  <p id="connectionStatus">Not connected.</p>
+
+  <div>
+    <label for="messageInput">Send Message:</label>
+    <input type="text" id="messageInput">
+    <button id="sendButton" disabled>Send</button>
+  </div>
+
+  <div>
+    <h2>Received Data:</h2>
+    <textarea id="receivedData" rows="10" cols="50" readonly></textarea>
+  </div>
 
   <script>
+    const connectButton = document.getElementById('connectButton');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const receivedDataTextarea = document.getElementById('receivedData');
+
     let port;
     let reader;
     let writer;
 
-    async function connectSerial() {
-      port = await navigator.serial.requestPort();
-      await port.open({ baudRate: 9600 });
-      reader = port.readable.getReader();
-      writer = port.writable.getWriter();
+    connectButton.addEventListener('click', async () => {
+      try {
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 9600 });
+        connectionStatus.textContent = 'Connected.';
+        connectButton.disabled = true;
+        sendButton.disabled = false;
+        startReading();
+        console.log('Serial port opened successfully.');
+      } catch (err) {
+        connectionStatus.textContent = `Connection error: ${err.message}`;
+        console.error('Serial port connection error:', err);
+      }
+    });
 
-      const decoder = new TextDecoderStream();
-      const readableStreamClosed = port.readable.pipeTo(decoder.writable);
-      const readable = decoder.readable.pipeThrough(new TransformStream({
-        transform(chunk, controller) {
-          controller.enqueue(chunk);
-        }
-      }));
-
-      const reader2 = readable.getReader();
-
-      async function readLoop() {
-        while (true) {
-          const { value, done } = await reader2.read();
-          if (done) {
-            break;
-          }
-          const values = value.trim().split(',');
-          updateSliderValues(values);
+    sendButton.addEventListener('click', async () => {
+      if (writer && port.writable) {
+        const dataToSend = messageInput.value + '\n'; // 改行コードを付加
+        const encoder = new TextEncoder();
+        const encodedData = encoder.encode(dataToSend);
+        try {
+          await writer.write(encodedData);
+          messageInput.value = ''; // 送信後に入力フィールドをクリア
+          console.log('Data sent:', dataToSend);
+        } catch (err) {
+          console.error('Error writing to serial port:', err);
         }
       }
-
-      readLoop();
-    }
-
-    function updateSliderValues(values) {
-      document.getElementById("se0").value = values[0]; document.getElementById("se0Value").textContent = values[0];
-      document.getElementById("se1").value = values[1]; document.getElementById("se1Value").textContent = values[1];
-      document.getElementById("se2").value = values[2]; document.getElementById("se2Value").textContent = values[2];
-      document.getElementById("se3").value = values[3]; document.getElementById("se3Value").textContent = values[3];
-      document.getElementById("A").value = values[4]; document.getElementById("AValue").textContent = values[4];
-      document.getElementById("B").value = values[5]; document.getElementById("BValue").textContent = values[5];
-      document.getElementById("C").value = values[6]; document.getElementById("CValue").textContent = values[6];
-      document.getElementById("p1").value = values[7]; document.getElementById("p1Value").textContent = values[7];
-      document.getElementById("ha").value = values[8]; document.getElementById("haValue").textContent = values[8];
-    }
-
-    document.getElementById("writeButton").addEventListener("click", async () => {
-      const se0 = document.getElementById("se0").value;
-      const se1 = document.getElementById("se1").value;
-      const se2 = document.getElementById("se2").value;
-      const se3 = document.getElementById("se3").value;
-      const A = document.getElementById("A").value;
-      const B = document.getElementById("B").value;
-      const C = document.getElementById("C").value;
-      const p1 = document.getElementById("p1").value;
-      const ha = document.getElementById("ha").value;
-      const data = `write:${se0},${se1},${se2},${se3},${A},${B},${C},${p1},${ha}\n`;
-      const encoder = new TextEncoder();
-      await writer.write(encoder.encode(data));
     });
 
-    document.getElementById("readButton").addEventListener("click", async () => {
-      const data = "read\n";
-      const encoder = new TextEncoder();
-      await writer.write(encoder.encode(data));
-    });
-
-    connectSerial();
+    async function startReading() {
+      while (port && port.readable) {
+        reader = port.readable.getReader();
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) {
+              // リーダーが閉じられた
+              console.log('Reader has been closed.');
+              break;
+            }
+            if (value) {
+              const decoder = new TextDecoder();
+              const receivedText = decoder.decode(value);
+              receivedDataTextarea.value += receivedText;
+              receivedDataTextarea.scrollTop = receivedDataTextarea.scrollHeight; // 最新のデータが見えるようにスクロール
+              console.log('Received:', receivedText);
+            }
+          }
+        } catch (error) {
+          console.error('Error reading from serial port:', error);
+        } finally {
+          reader.releaseLock();
+        }
+      }
+    }
   </script>
 </body>
 </html>
