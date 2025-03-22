@@ -40,12 +40,16 @@
         sendButton.disabled = false;
         startReading();
 
-    if (port.writable) {
+    // Chrome向け: writable が true になるまでポーリング
+    const waitForWritable = async () => {
+      while (!port.writable) {
+        await new Promise(resolve => setTimeout(resolve, 100)); // 100ミリ秒ごとに確認
+      }
       writer = port.writable.getWriter();
-      console.log('Writable stream obtained:', writer);
-    } else {
-      console.error('Writable stream is not available.');
-    }
+      console.log('Writable stream obtained (after polling):', writer);
+    };
+
+    await waitForWritable();
         
         console.log('Serial port opened successfully.');
       } catch (err) {
