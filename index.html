@@ -39,6 +39,14 @@
         connectButton.disabled = true;
         sendButton.disabled = false;
         startReading();
+
+    if (port.writable) {
+      writer = port.writable.getWriter();
+      console.log('Writable stream obtained:', writer);
+    } else {
+      console.error('Writable stream is not available.');
+    }
+        
         console.log('Serial port opened successfully.');
       } catch (err) {
         connectionStatus.textContent = `Connection error: ${err.message}`;
